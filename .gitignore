@@ -1,0 +1,16 @@
+
+node_modules/
+npm-debug.log
+yarn-error.log
+.env
+
+# C++ (Core)
+*.exe
+*.o
+*.out
+*.app
+cpp_core/build/
+
+
+.DS_Store
+Thumbs.db
