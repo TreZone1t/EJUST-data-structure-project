@@ -4,6 +4,11 @@
 
 class Queue {
 private:
+    struct Node {
+        Customer data;
+        Node* next;
+        Node(const Customer& c) : data(c), next(nullptr) {}
+    };
     Node* front;
     Node* rear;
     int len; 
