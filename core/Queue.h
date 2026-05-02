@@ -1,14 +1,59 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 #include "Customer.h"
+
 class Queue {
 private:
-   int len; //this for know how many customer in the queue in the future (like counter or count)
+    Node* front;
+    Node* rear;
+    int len; 
 public:
-    void enqueue(Customer c);
-    Customer dequeue();
-    bool isEmpty();
-    int getLength();
+    Queue() {
+        front = rear = nullptr;
+        len = 0;
+    }
+
+    bool isEmpty() {
+        return front == nullptr;
+    }
+
+    void enqueue(Customer c) {
+        Node* newNode = new Node(c);
+        newNode->next = nullptr;
+
+        if (isEmpty()) {
+            front = rear = newNode;
+        } else {
+            rear->next = newNode;
+            rear = newNode;
+        }
+        len++;
+    }
+
+    Customer dequeue() {
+        if (isEmpty()) return Customer();
+
+        Node* temp = front;
+        Customer c = temp->data;
+
+        front = front->next;
+        if (front == nullptr) rear = nullptr;
+
+        delete temp;
+        len--;
+
+        return c;
+    }
+
+    int getLength() {
+        return len;
+    }
+
+    ~Queue() {
+        while (!isEmpty()) {
+            dequeue();
+        }
+    }
 };
 
 #endif
