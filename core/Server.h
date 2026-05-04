@@ -1,7 +1,7 @@
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef SERVERO_H
+#define SERVERO_H
 
-struct Server {
+struct ServerO {
     int id;
     bool isFree = true;      
     int time;
