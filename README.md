@@ -1,6 +1,6 @@
 ![Project Status](https://img.shields.io/badge/Status-In%20Development-blue)
 ![Course](https://img.shields.io/badge/Course-Data%20Structures-brightgreen)
-![Tech Stack](https://img.shields.io/badge/Stack-C++%20|%20Express%20|%20React-orange)
+![Tech Stack](https://img.shields.io/badge/Stack-C++%20|%20React-orange)
 
 ## 📌 Project Overview
 This project is a comprehensive **Queuing System Simulation** designed to model real-life service environments (such as banks, hospitals, or call centers) where customers wait in line to receive service. It utilizes a custom-built **FIFO Queue data structure** in C++ to simulate customer arrivals, waiting times, and service durations.
