@@ -37,3 +37,4 @@ public:
         return serviceEndTime - arrivalTime;
     }
 };
+#endif

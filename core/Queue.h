@@ -11,7 +11,9 @@ private:
     };
     Node* front;
     Node* rear;
-    int len; 
+    int QWaitTimeSum;
+    int len;
+    int averageQWaitTime;
 public:
     Queue() {
         front = rear = nullptr;
@@ -33,6 +35,8 @@ public:
             rear = newNode;
         }
         len++;
+        QWaitTimeSum += newNode->data.getQueueWaitTime();
+        averageQWaitTime = QWaitTimeSum / len;
     }
 
     Customer dequeue() {
