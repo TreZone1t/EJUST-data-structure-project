@@ -6,52 +6,75 @@
 
 using namespace std;
 using namespace httplib;
-int free_server(vector<int>& serverEndTime) {
-    int idx = 0;
-    int earliest = serverEndTime[0];
-
-    for (int i = 1; i < serverEndTime.size(); i++) {
-        if (serverEndTime[i] < earliest) {
-            earliest = serverEndTime[i];
-            idx = i;
+int FreeServer(vector<ServerO>& servers, int currentTime) {
+    for (int i = 0; i < servers.size(); i++) {
+        if (servers[i].time <= currentTime) {
+            return i;
         }
     }
-    return idx;
+    return -1; // no free server
 }
-void runSimulation(int Customers, int Servers) {
+int main() {
     srand(time(0));
-    vector<int> arrival(Customers);
-    vector<int> service(Customers);
-    vector<int> serverEndTime(Servers, 0);
-    // Generate arrival times (inter-arrival)
-    arrival[0] = 0;
-    for (int i = 1; i < Customers; i++) {
-        arrival[i] = arrival[i - 1] + (rand() % 10 + 1);
-    }
-    // Generate service times
-    for (int i = 0; i < Customers; i++) {
-        service[i] = rand() % 5 + 1;
-    }
-    cout << "-------------------------------------------------------------------\n";
-    cout << "Arr\t \tWait\t \tStart\t \tServ\t \tEnd\t \tIdle\t Server\n";
-    cout << "--------------------------------------------------------------------\n";
-    for (int i = 0; i < Customers; i++) {
-        int server = free_server(serverEndTime);
-        int start = max(arrival[i], serverEndTime[server]);
-        int wait = start - arrival[i];
-        int idle = max(0, arrival[i] - serverEndTime[server]);
-        int end = start + service[i];
-        serverEndTime[server] = end;
-        cout << arrival[i] << "\t"<<"\t"
-             << wait << "\t"<<"\t"<<"\t"
-             << start << "\t" <<"\t" <<"\t"
-             << service[i] << "\t" <<"\t"<<"\t"
-             << end << "\t" <<"\t"<<"\t"
-             << idle<<"\t"<<"\t"
-             << server << endl;
-    }
-}
 
+    int numCustomers = 10;
+    int numServers = 2;
+
+    Queue q;
+    vector<ServerO> servers(numServers);
+
+    // initialize servers
+    for (int i = 0; i < numServers; i++) {
+        servers[i].id = i;
+        servers[i].time = 0;
+        servers[i].isFree = true;
+    }
+
+    int arrival = 0;
+
+    cout << "Arr\tWait\tStart\tServ\tEnd\tServer\n";
+    cout << "-------------------------------------------------\n";
+
+    for (int i = 0; i < numCustomers; i++) {
+
+        // generate times
+        if (i != 0)
+            arrival += (rand() % 10 + 1);
+
+        int service = rand() % 5 + 1;
+
+        Customer c(i, arrival, service);
+
+        // add to queue
+        q.enqueue(c);
+
+        // try to serve from queue
+        int serverIndex = getFreeServer(servers, arrival);
+
+        if (serverIndex != -1 && !q.isEmpty()) {
+
+            Customer current = q.dequeue();
+
+            int start = max(current.getArrivalTime(), servers[serverIndex].time);
+            int wait = start - current.getArrivalTime();
+            int end = start + current.getTransactionTime();
+
+            current.setQueueWaitTime(wait);
+            current.setWindowOpenTime(start);
+            current.setServiceEndTime(end);
+
+            servers[serverIndex].time = end;
+
+            cout << current.getArrivalTime() << "\t"
+                 << wait << "\t"
+                 << start << "\t"
+                 << current.getTransactionTime() << "\t"
+                 << end << "\t"
+                 << serverIndex << endl;
+        }
+    }
+
+   
 int main()
 { 
     Server svr;
