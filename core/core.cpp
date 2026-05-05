@@ -14,7 +14,18 @@ int FreeServer(vector<ServerO>& servers, int currentTime) {
     }
     return -1; // no free server
 }
-int main() {
+
+
+   
+int main()
+{ 
+    Server svr;
+    const int port = 8080;
+    svr.Get("/", [](const httplib::Request &, httplib::Response &res)
+            { res.set_content("Hello from C++ Windows Server!", "text/plain"); });
+    cout << "Server started at port:" << port;
+                 svr.listen("0.0.0.0", port);
+
     srand(time(0));
 
     int numCustomers = 10;
@@ -49,7 +60,7 @@ int main() {
         q.enqueue(c);
 
         // try to serve from queue
-        int serverIndex = getFreeServer(servers, arrival);
+        int serverIndex = FreeServer(servers, arrival);
 
         if (serverIndex != -1 && !q.isEmpty()) {
 
@@ -72,16 +83,5 @@ int main() {
                  << end << "\t"
                  << serverIndex << endl;
         }
-    }
-
-   
-int main()
-{ 
-    Server svr;
-    const int port = 8080;
-    svr.Get("/", [](const httplib::Request &, httplib::Response &res)
-            { res.set_content("Hello from C++ Windows Server!", "text/plain"); });
-    cout << "Server started at port:" << port;
-                 svr.listen("0.0.0.0", port);
     return 0;
 }
