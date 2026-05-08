@@ -1,50 +1,62 @@
-import React, { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   ReactFlow,
-  MiniMap,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   Handle,
   Position,
-  MarkerType
 } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { CustomerData } from './CustomerTable';
 
-// Custom Server Node
-const ServerNode = ({ data }: any) => {
+const CoverageNode = ({ data }: any) => {
   return (
-    <div className="relative flex flex-col items-center justify-center p-4 bg-white border-2 border-blue-500 rounded-lg shadow-lg min-w-[120px]">
-      <Handle type="target" position={Position.Top} className="!bg-blue-500" />
-      
-      {/* Service Area Halo */}
-      <div className="absolute inset-0 -m-8 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 bg-opacity-30 pointer-events-none animate-pulse"></div>
-      
-      <div className="text-3xl mb-2 z-10">👨‍💻</div>
-      <div className="font-bold text-gray-800 z-10">{data.label}</div>
-      <div className="text-xs text-gray-500 z-10">Service Area Active</div>
-      
-      <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
+    <div
+      className="rounded-full border-2 border-dashed border-cyan-500/30 bg-cyan-900/10 flex items-center justify-center pointer-events-none"
+      style={{ width: data.radius * 2, height: data.radius * 2 }}
+    >
+      <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 bg-cyan-900/10"></div>
+      <div className="absolute top-8 text-cyan-400 text-sm font-bold tracking-[0.2em] uppercase bg-slate-900/80 px-4 py-1 rounded-full border border-cyan-500/30">
+        {data.label} Coverage
+      </div>
     </div>
   );
 };
 
-// Custom Customer Node
+const ServerNode = ({ data }: any) => {
+  return (
+    <div className="relative flex flex-col items-center justify-center w-20 h-20 bg-slate-900 border-2 border-cyan-400 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.4)] z-50 group">
+      <Handle type="target" position={Position.Top} className="!opacity-0" />
+      <div className="absolute inset-0 bg-cyan-500/10 rounded-2xl"></div>
+      <div className="text-3xl z-10">📡</div>
+
+      <div className="absolute -bottom-8 whitespace-nowrap font-bold text-cyan-300 text-sm z-10 bg-slate-900 px-3 py-1 rounded-full border border-cyan-500/50 shadow-md">
+        {data.label}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
+    </div>
+  );
+};
+
 const CustomerNode = ({ data }: any) => {
   return (
-    <div className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-full shadow-md min-w-[60px] min-h-[60px]">
-      <Handle type="target" position={Position.Top} className="!bg-gray-400" />
-      <div className="font-bold text-gray-800">#{data.ticket}</div>
-      <div className="text-[10px] text-amber-600 font-medium">Wait: {data.wait}</div>
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400" />
+    <div className="relative group flex items-center justify-center w-4 h-4 bg-fuchsia-500 border border-fuchsia-300 rounded-full shadow-[0_0_8px_rgba(217,70,239,0.8)] cursor-pointer z-40">
+      <Handle type="target" position={Position.Top} className="!opacity-0" />
+      <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-xs text-white p-2 rounded-lg border border-slate-700 whitespace-nowrap z-[100] shadow-2xl">
+        <span className="font-bold text-fuchsia-300 mb-0.5">User #{data.ticket}</span>
+        <span className="text-[10px] text-slate-400">Wait: {data.wait}s</span>
+        <div className="absolute -bottom-1.5 w-3 h-3 bg-slate-900 border-b border-r border-slate-700 rotate-45"></div>
+      </div>
+      <Handle type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   );
 };
 
 const nodeTypes = {
+  coverage: CoverageNode,
   server: ServerNode,
   customer: CustomerNode,
 };
@@ -52,93 +64,94 @@ const nodeTypes = {
 interface SimulationGraphProps {
   numServers: number;
   customers: CustomerData[];
+  isRunning: boolean;
 }
 
-export const SimulationGraph: React.FC<SimulationGraphProps> = ({ numServers, customers }) => {
+export const SimulationGraph: React.FC<SimulationGraphProps> = ({ numServers, customers, isRunning }) => {
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    
-    // Create Server Nodes at the top
-    const serverSpacingX = 300;
+
+    const coverageRadius = 350;
+    const serverSpacingX = 850;
     const startX = -((numServers - 1) * serverSpacingX) / 2;
-    
     for (let i = 0; i < numServers; i++) {
+      const cx = startX + i * serverSpacingX;
+      const cy = 0;
+      nodes.push({
+        id: `coverage-${i}`,
+        type: 'coverage',
+        position: { x: cx - coverageRadius, y: cy - coverageRadius },
+        data: { label: `Zone ${i + 1}`, radius: coverageRadius, isRunning },
+        style: { zIndex: -1 },
+        draggable: false,
+        selectable: false,
+      });
       nodes.push({
         id: `server-${i}`,
         type: 'server',
-        position: { x: startX + i * serverSpacingX, y: 50 },
-        data: { label: `Server ${i + 1}` },
+        position: { x: cx - 40, y: cy - 40 },
+        data: { label: `Server ${i + 1}`, isRunning },
+        style: { zIndex: 50 },
       });
     }
-
-    // Group customers by server
     const serverQueues: Record<number, CustomerData[]> = {};
     for (let i = 0; i < numServers; i++) serverQueues[i] = [];
-    
     customers.forEach(c => {
       if (serverQueues[c.serverId]) {
         serverQueues[c.serverId].push(c);
+      } else if (numServers > 0) {
+        serverQueues[c.serverId % numServers].push(c);
       }
     });
-
-    // Create Customer Nodes and connect them
     Object.keys(serverQueues).forEach(serverIdStr => {
       const serverId = parseInt(serverIdStr);
       const queue = serverQueues[serverId];
-      
-      // Sort queue by arrival time
-      queue.sort((a, b) => a.arrivalTime - b.arrivalTime);
-
-      queue.forEach((c, index) => {
+      const cx = startX + serverId * serverSpacingX;
+      const cy = 0;
+      queue.forEach((c) => {
         const customerNodeId = `customer-${c.ticketNumber}`;
-        const serverX = startX + serverId * serverSpacingX;
-        
-        // Vertical spacing based on wait time / queue position
-        // Distance is simulated by wait time + index offset to avoid overlap
-        const yOffset = 250 + (index * 100);
-        
+        const minRadius = 90;
+        const maxRadius = coverageRadius - 40;
+        const angle = (c.ticketNumber * 137.5) * (Math.PI / 180);
+        const pseudoRandom = ((c.ticketNumber * 9301 + 49297) % 233280) / 233280;
+        const r = minRadius + Math.sqrt(pseudoRandom) * (maxRadius - minRadius);
+        const px = cx + r * Math.cos(angle) - 8;
+        const py = cy + r * Math.sin(angle) - 8;
         nodes.push({
           id: customerNodeId,
           type: 'customer',
-          position: { x: serverX, y: yOffset },
-          data: { 
+          position: { x: px, y: py },
+          data: {
             ticket: c.ticketNumber,
-            wait: c.queueWaitTime
+            wait: c.queueWaitTime,
+            isRunning
           },
+          style: { zIndex: 40 },
+          draggable: true,
         });
-
-        // Edge connecting customer to previous customer (or server)
-        const targetId = index === 0 ? `server-${serverId}` : `customer-${queue[index - 1].ticketNumber}`;
-        
         edges.push({
-          id: `e-${customerNodeId}-${targetId}`,
+          id: `e-${customerNodeId}-server-${serverId}`,
           source: customerNodeId,
-          target: targetId,
-          animated: true,
-          style: { stroke: '#3b82f6', strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#3b82f6',
-          },
+          target: `server-${serverId}`,
+          animated: isRunning,
+          style: { stroke: 'rgba(217, 70, 239, 0.15)', strokeWidth: 1.5 },
         });
       });
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [numServers, customers]);
+  }, [numServers, customers, isRunning]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Update state when props change
-  React.useEffect(() => {
+  useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   return (
-    <div style={{ width: '100%', height: '600px' }} className="border border-gray-200 rounded-xl overflow-hidden shadow-inner bg-gray-50/50">
+    <div className="absolute inset-0">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -146,14 +159,17 @@ export const SimulationGraph: React.FC<SimulationGraphProps> = ({ numServers, cu
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
-        attributionPosition="bottom-right"
+        fitViewOptions={{ padding: 0.2 }}
+        colorMode="dark"
+        minZoom={0.05}
+        maxZoom={1.5}
+        className="bg-slate-950"
       >
-        <Background gap={16} size={1} />
-        <MiniMap zoomable pannable nodeColor={(n) => {
-          if (n.type === 'server') return '#3b82f6';
-          return '#9ca3af';
-        }} />
-        <Controls />
+        <Background gap={40} size={1.5} color="rgba(148, 163, 184, 0.05)" />
+        <Controls
+          className="bg-slate-800/80 backdrop-blur-md border border-slate-700 fill-slate-300 rounded-xl overflow-hidden shadow-2xl"
+          showInteractive={false}
+        />
       </ReactFlow>
     </div>
   );

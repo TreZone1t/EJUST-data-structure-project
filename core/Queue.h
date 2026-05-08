@@ -58,6 +58,11 @@ public:
         return len;
     }
 
+    int getAverageWaitTime() {
+        if (len == 0) return 0;
+        return QWaitTimeSum / len;
+    }
+
     ~Queue() {
         while (!isEmpty()) {
             dequeue();
