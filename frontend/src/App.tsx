@@ -228,9 +228,10 @@ function App() {
                   <span className="font-mono text-amber-400">{server.avgWaitTime}s</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-400">Throughput:</span>
+                  <span className="text-slate-400">Service Rate:</span>
                   <span className="font-mono text-emerald-400">
                     {(server.totalServed / Math.max(1, data.time)).toFixed(2)} /s
+                    {/* toFixed(2) reduce the decimal number to 2 form 0.00000 to 0.00 only */}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
@@ -243,13 +244,14 @@ function App() {
             </div>
           ))}
           {data.servers.length === 0 && (
-            <div className="col-span-full text-center py-8 text-slate-500 italic">
+            <button
+              onClick={() => startSimulation()}
+            >
+              <div className="col-span-full text-center py-8 text-slate-500 italic">
 
-              <button
-                onClick={() => startSimulation()}
-              >Click "Start" or here to begin the simulation.
-              </button>
-            </div>
+                Click "Start" or here to begin the simulation.
+              </div>
+            </button>
           )}
         </div>
       </section>
