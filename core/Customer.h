@@ -1,48 +1,33 @@
 #ifndef CUSTOMER_H
 #define CUSTOMER_H
-#include "utils/utils.h"
-
-class Customer {
+#include "Decive.h"
+class Customer : public Device {
 private:
-  static int ticketCounter;
-  int ticketNumber;
   int arrivalTime;
   int transactionTime;
   int queueWaitTime;
   int serviceEndTime;
   int windowOpenTime;
-  struct location {
-    int x;
-    int y;
-  } location;
   int serverId;
 
 public:
-  Customer() {
-    Utils util;
-    ticketNumber = ticketCounter++;
-    arrivalTime = util.random(0, 100);
-    transactionTime = util.random(1, 10);
+  Customer(int arrTime = 0) : Device() {
+    arrivalTime = arrTime;
+    transactionTime = rand() % 10 + 1;
     queueWaitTime = 0;
     windowOpenTime = 0;
     serviceEndTime = 0;
-    location.x = util.random(0, 1000);
-    location.y = util.random(0, 1000);
     serverId = -1;
   }
-  Customer(int ticket, int arr, int trans, int x_coord, int y_coord) {
-    ticketNumber = ticket;
+  Customer(int ID, int arr, int trans, int x_coord, int y_coord)
+      : Device(ID, x_coord, y_coord) {
     arrivalTime = arr;
     transactionTime = trans;
     queueWaitTime = 0;
     windowOpenTime = 0;
     serviceEndTime = 0;
-    location.x = x_coord;
-    location.y = y_coord;
     serverId = -1;
   }
-
-  int getTicketNumber() { return ticketNumber; }
   int getArrivalTime() { return arrivalTime; }
   int getTransactionTime() { return transactionTime; }
   int getQueueWaitTime() { return queueWaitTime; }

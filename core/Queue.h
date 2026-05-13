@@ -1,75 +1,94 @@
 #ifndef QUEUE_H
 #define QUEUE_H
-#include "Customer.h"
 
-class Queue {
+template <typename T> class Queue {
 private:
-    struct Node {
-        Customer data;
-        Node* next;
-        Node(const Customer& c) : data(c), next(nullptr) {}
-    };
-    Node* front;
-    Node* rear;
-    int QWaitTimeSum;
-    int len;
-    int averageQWaitTime;
+  struct Node {
+    T data;
+    Node *next;
+    Node(const T &c) : data(c), next(nullptr) {}
+  };
+  Node *front;
+  Node *rear;
+  int len;
+
 public:
-    Queue() {
-        front = rear = nullptr;
-        len = 0;
+  Queue() {
+    front = rear = nullptr;
+    len = 0;
+  }
+
+  Queue(const Queue &other) {
+    front = rear = nullptr;
+    len = 0;
+    Node *curr = other.front;
+    while (curr) {
+      enqueue(curr->data);
+      curr = curr->next;
     }
-
-    bool isEmpty() {
-        return front == nullptr;
+  }
+  Queue &operator=(const Queue &other) {
+    if (this != &other) {
+      while (!isEmpty())
+        dequeue();
+      Node *curr = other.front;
+      while (curr) {
+        enqueue(curr->data);
+        curr = curr->next;
+      }
     }
+    return *this;
+  }
 
-    void enqueue(Customer c) {
-        Node* newNode = new Node(c);
-        newNode->next = nullptr;
+  bool isEmpty() const { return front == nullptr; }
 
-        if (isEmpty()) {
-            front = rear = newNode;
-        } else {
-            rear->next = newNode;
-            rear = newNode;
-        }
-        len++;
-        QWaitTimeSum += newNode->data.getQueueWaitTime();
-        averageQWaitTime = QWaitTimeSum / len;
+  void enqueue(T c) {
+    Node *newNode = new Node(c);
+    if (isEmpty()) {
+      front = rear = newNode;
+    } else {
+      rear->next = newNode;
+      rear = newNode;
     }
+    len++;
+  }
 
-    Customer dequeue() {
-        if (isEmpty()) return Customer();
+  T dequeue() {
+    if (isEmpty())
+      return T();
 
-        Node* temp = front;
-        Customer c = temp->data;
+    Node *temp = front;
+    T c = temp->data;
 
-        front = front->next;
-        if (front == nullptr) rear = nullptr;
+    front = front->next;
+    if (front == nullptr)
+      rear = nullptr;
 
-        delete temp;
-        len--;
+    delete temp;
+    len--;
 
-        return c;
+    return c;
+  }
+
+  T &showFront() { return front->data; }
+
+  int getLength() const { return len; }
+
+  T &operator[](int index) {
+    Node *curr = front;
+    for (int i = 0; i < index && curr; i++) {
+      curr = curr->next;
     }
+    if (curr)
+      return curr->data;
+    return front->data;
+  }
 
-    int getLength() {
-        return len;
+  ~Queue() {
+    while (!isEmpty()) {
+      dequeue();
     }
-
-    int getAverageWaitTime() {
-        if (len == 0) return 0;
-        return QWaitTimeSum / len;
-    }
-
-    ~Queue() {
-        while (!isEmpty()) {
-            dequeue();
-        }
-    }
+  }
 };
 
 #endif
-
-//Adam Was Here <--
