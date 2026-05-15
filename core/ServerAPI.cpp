@@ -11,7 +11,6 @@ private:
   int Squeue;
   int tick;
   int ticksPerCall; // how many simulation steps per API request
-  int arrivalRate;  // new customers per tick
   int totalSpawned; // how many customers have been created so far
   bool sim_running;
   Queue<Server> servers;
@@ -96,12 +95,10 @@ private:
   void simulationTick() {
     if (!sim_running)
       return;
-    // Spawn arrivalRate new customers per tick (until max_customers reached)
+    // Spawn 1 new customer per tick (until max_customers reached)
     int toSpawn = 0;
     if (totalSpawned < max_customers) {
-      toSpawn = arrivalRate;
-      if (totalSpawned + toSpawn > max_customers)
-        toSpawn = max_customers - totalSpawned;
+      toSpawn = 1;
     }
     for (int k = 0; k < toSpawn; k++) {
       Customer c(tick); // arrivalTime = current tick
@@ -146,11 +143,21 @@ private:
 
 public:
   ServerAPI(int servers_count)
-      : Squeue(3), tick(0), ticksPerCall(3), arrivalRate(2), totalSpawned(0),
+      : Squeue(3), tick(0), ticksPerCall(3), totalSpawned(0),
         sim_running(false), max_customers(100) {
     for (int i = 0; i < servers_count; i++) {
       Server s(Squeue);
-      s.setLocation(i * 1000, 0);
+      int cx = 1000, cy = 1000;
+      // Fibonacci Spiral (Phyllotaxis) Layout
+      // Angle: i * Golden Angle (approx 137.5 degrees)
+      // Radius: c * sqrt(i)
+      double goldenAngle = 2.399963229728653; // in radians
+      double radius = 500.0 * sqrt(i + 1);
+      double angle = i * goldenAngle;
+
+      int rx = cx + (int)(cos(angle) * radius);
+      int ry = cy + (int)(sin(angle) * radius);
+      s.setLocation(rx, ry);
       servers.enqueue(s);
     }
   }
@@ -197,17 +204,16 @@ public:
       if (req.has_param("customers")) {
         this->max_customers = std::stoi(req.get_param_value("customers"));
       }
-      // Arrival rate: how many customers arrive per tick
-      this->arrivalRate = 2;
-      if (req.has_param("arrivalRate")) {
-        int ar = std::stoi(req.get_param_value("arrivalRate"));
-        this->arrivalRate = (ar > 0 && ar <= 50) ? ar : 2;
-      }
       // Speed: how many ticks to advance per /api/data call
       this->ticksPerCall = 3;
       if (req.has_param("speed")) {
         int s = std::stoi(req.get_param_value("speed"));
         this->ticksPerCall = (s > 0 && s <= 20) ? s : 3;
+      }
+
+      string layout = "fibonacci";
+      if (req.has_param("layout")) {
+        layout = req.get_param_value("layout");
       }
 
       this->tick = 0;
@@ -223,8 +229,34 @@ public:
       while (this->completed_customers.getLength() > 0)
         this->completed_customers.dequeue();
 
+      int cx = 1000, cy = 1000;
+      int spacing = 1000;
+
       for (int i = 0; i < reqServers; i++) {
         Server s(Squeue);
+        int rx = cx, ry = cy;
+
+        if (layout == "random") {
+          rx = 800 + rand() % 2000;
+          ry = 800 + rand() % 1500;
+        } else if (layout == "grid") {
+          int cols = (int)ceil(sqrt(reqServers));
+          int row = i / cols;
+          int col = i % cols;
+          rx = cx + col * spacing;
+          ry = cy + row * spacing;
+        } else if (layout == "line") {
+          rx = cx + i * spacing;
+          ry = cy;
+        } else { // Default: fibonacci
+          double goldenAngle = 2.399963229728653;
+          double radius = 500.0 * sqrt(i + 1);
+          double angle = i * goldenAngle;
+          rx = cx + (int)(cos(angle) * radius);
+          ry = cy + (int)(sin(angle) * radius);
+        }
+
+        s.setLocation(rx, ry);
         this->servers.enqueue(s);
       }
       this->sim_running = true;

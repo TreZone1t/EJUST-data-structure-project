@@ -40,11 +40,15 @@ function App() {
   const [numServers, setNumServers] = useState<number | string>(3);
   const [Squeue, setSqueue] = useState<number | string>("3");
   const [maxCustomers, setMaxCustomers] = useState<number | string>("100");
-  const [arrivalRate, setArrivalRate] = useState<number | string>("2");
+  const [tickRate, setTickRate] = useState<number | string>("3");
   const [error, setError] = useState<string | null>(null);
   const [finishTime, setFinishTime] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [layout, setLayout] = useState<string>("fibonacci");
+  const [realStartTime, setRealStartTime] = useState<number | null>(null);
+  const [elapsedRealTime, setElapsedRealTime] = useState<number>(0);
+  const realTimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Use absolute URL in dev mode, and relative URL in production (when served by C++)
   const backendUrl = import.meta.env.DEV ? `http://${window.location.hostname}:8081` : '';
@@ -53,9 +57,20 @@ function App() {
     try {
       const serversCount = numServers === '' ? 1 : Number(numServers);
       const custLimit = maxCustomers === '' ? 100 : Number(maxCustomers);
-      const rate = arrivalRate === '' ? 2 : Number(arrivalRate);
+      const speed = tickRate === '' ? 3 : Number(tickRate);
+      const arrival = 2; // Fixed default arrival rate for simplicity
       setFinishTime(null);
-      await axios.get(`${backendUrl}/api/start?servers=${serversCount}&Squeue=${Squeue}&customers=${custLimit}&arrivalRate=${rate}`);
+      setElapsedRealTime(0);
+      setRealStartTime(Date.now());
+      
+      await axios.get(`${backendUrl}/api/start?servers=${serversCount}&Squeue=${Squeue}&customers=${custLimit}&arrivalRate=${arrival}&speed=${speed}&layout=${layout}`);
+      
+      // Real-time counter
+      if (realTimeIntervalRef.current) clearInterval(realTimeIntervalRef.current);
+      realTimeIntervalRef.current = setInterval(() => {
+        setElapsedRealTime(prev => prev + 1);
+      }, 1000);
+
       // Start polling
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(fetchSimulationData, 300);
@@ -78,7 +93,33 @@ function App() {
     try {
       const response = await axios.get(`${backendUrl}/api/data`);
       if (response.data) {
-        setData(response.data);
+        // Scale ticks to milliseconds (1 tick = almost 2ms)
+        const TICK_TO_MS = 2;
+        const scaledData = {
+          ...response.data,
+          time: response.data.time * TICK_TO_MS,
+          servers: response.data.servers.map((s: any) => ({
+            ...s,
+            avgWaitTime: s.avgWaitTime * TICK_TO_MS
+          })),
+          customers: response.data.customers.map((c: any) => ({
+            ...c,
+            arrivalTime: c.arrivalTime * TICK_TO_MS,
+            transactionTime: c.transactionTime * TICK_TO_MS,
+            queueWaitTime: c.queueWaitTime * TICK_TO_MS,
+            windowOpenTime: c.windowOpenTime > 0 ? c.windowOpenTime * TICK_TO_MS : 0,
+            serviceEndTime: c.serviceEndTime > 0 ? c.serviceEndTime * TICK_TO_MS : 0,
+          })),
+          completedCustomers: response.data.completedCustomers.map((c: any) => ({
+            ...c,
+            arrivalTime: c.arrivalTime * TICK_TO_MS,
+            transactionTime: c.transactionTime * TICK_TO_MS,
+            queueWaitTime: c.queueWaitTime * TICK_TO_MS,
+            windowOpenTime: c.windowOpenTime > 0 ? c.windowOpenTime * TICK_TO_MS : 0,
+            serviceEndTime: c.serviceEndTime > 0 ? c.serviceEndTime * TICK_TO_MS : 0,
+          }))
+        };
+        setData(scaledData);
         setError(null);
       }
     } catch (err) {
@@ -91,6 +132,10 @@ function App() {
     if (data.isFinished && intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+      if (realTimeIntervalRef.current) {
+        clearInterval(realTimeIntervalRef.current);
+        realTimeIntervalRef.current = null;
+      }
       setFinishTime(data.time);
       setReportOpen(true);
       axios.get(`${backendUrl}/api/stop`).catch(() => { });
@@ -109,7 +154,7 @@ function App() {
       <header className="p-4 border-b border-slate-800/50 bg-slate-900/60 backdrop-blur-xl sticky top-0 w-full z-50 shadow-lg shadow-black/20 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 tracking-tight">
-            Network Topology & Server Load
+            Server Simulation
           </h1>
           <p className="text-slate-400 text-sm mt-1 font-medium flex items-center gap-2">
             {data.isFinished
@@ -118,12 +163,16 @@ function App() {
                 <span className={`w-2 h-2 rounded-full block ${data.isRunning ? 'bg-red-500 animate-pulse' : 'bg-slate-500'}`}></span>
               </>}
             {' '}·{' '}
+            <span className="text-slate-400">
+              {data.isRunning || data.isFinished ? `Real Duration: ${Math.floor(elapsedRealTime / 60)}m ${elapsedRealTime % 60}s` : 'Real Duration: 0s'}
+            </span>
+            {' '}·{' '}
             {finishTime !== null
               ? <>
                 <span className="text-emerald-300 font-bold">Finished at tick {finishTime}</span>
                 <button onClick={() => setReportOpen(true)} className="ml-2 px-2 py-0.5 text-xs bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-lg hover:bg-emerald-500/30 transition-all font-bold">📋 View Report</button>
               </>
-              : <>Time: {data.time}s</>}
+              : <>Time: {data.time}ms</>}
           </p>
           {error && <p className="text-red-400 text-xs mt-1 font-bold animate-pulse">{error}</p>}
         </div>
@@ -150,17 +199,16 @@ function App() {
               title="-1 for infinite"
             />
           </div>
-          <div className="flex flex-col">
-            <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">ARRIVAL RATE <span className="text-slate-600">/tick</span></label>
-            <input
-              type="number"
-              min={1} max={50}
-              value={arrivalRate}
-              onChange={(e) => setArrivalRate(e.target.value === '' ? '' : parseInt(e.target.value))}
-              className="bg-slate-900 border border-slate-600 rounded px-2 py-1 w-16 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-              title="New customers arriving per tick"
-            />
-          </div>
+            <div className="flex flex-col">
+              <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Sim Speed<span className="text-slate-600">/poll</span></label>
+              <input
+                type="number"
+                className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50 transition-colors w-full"
+                value={tickRate}
+                onChange={(e) => setTickRate(e.target.value)}
+                placeholder="3"
+              />
+            </div>
           <div className="flex flex-col">
             <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Queue Size</label>
             <input
@@ -171,6 +219,19 @@ function App() {
               className="bg-slate-900 border border-slate-600 rounded px-2 py-1 w-20 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
               title="-1 for infinite"
             />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Layout</label>
+            <select
+              value={layout}
+              onChange={(e) => setLayout(e.target.value)}
+              className="bg-slate-900 border border-slate-600 rounded px-2 py-1 w-28 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+            >
+              <option value="fibonacci">Fibonacci</option>
+              <option value="grid">Grid</option>
+              <option value="line">Line</option>
+              <option value="random">Random</option>
+            </select>
           </div>
           <div className="flex gap-2 items-end h-full">
             <button
@@ -225,12 +286,12 @@ function App() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Avg Wait Time:</span>
-                  <span className="font-mono text-amber-400">{server.avgWaitTime}s</span>
+                  <span className="font-mono text-amber-400">{server.avgWaitTime}ms</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Service Rate:</span>
                   <span className="font-mono text-emerald-400">
-                    {(server.totalServed / Math.max(1, data.time)).toFixed(2)} /s
+                    {(server.totalServed / Math.max(1, data.time)).toFixed(2)} /ms
                     {/* toFixed(2) reduce the decimal number to 2 form 0.00000 to 0.00 only */}
                   </span>
                 </div>
@@ -309,7 +370,7 @@ function App() {
                         <td className="px-3 py-2 text-slate-400">{c.transactionTime}</td>
                         <td className={`px-3 py-2 font-mono font-bold ${currentWait > 10 ? 'text-red-400' : currentWait > 0 ? 'text-amber-400' : 'text-slate-500'
                           }`}>
-                          {currentWait}s {!isServed && <span className="text-[10px] text-slate-500">(live)</span>}
+                          {currentWait}ms {!isServed && <span className="text-[10px] text-slate-500">(live)</span>}
                         </td>
                         <td className="px-3 py-2 text-slate-400">{isServed ? c.windowOpenTime : '—'}</td>
                         <td className="px-3 py-2 text-emerald-400 font-mono">{c.serviceEndTime || '—'}</td>
@@ -330,12 +391,12 @@ function App() {
                   ? (data.customers.reduce((s, c) =>
                     s + (c.windowOpenTime > 0 ? c.queueWaitTime : (data.time - c.arrivalTime))
                     , 0) / data.customers.length).toFixed(1)
-                  : 0}s
+                  : 0}ms
               </strong></span>
               <span>Avg Tx: <strong className="text-cyan-400">
                 {data.customers.length > 0
                   ? (data.customers.reduce((s, c) => s + c.transactionTime, 0) / data.customers.length).toFixed(1)
-                  : 0}s
+                  : 0}ms
               </strong></span>
             </div>
           </div>
@@ -369,12 +430,13 @@ function App() {
                     {[
                       { label: 'Total Served', value: totalServed, color: 'text-white' },
                       { label: 'Total Time (ticks)', value: finishTime ?? 0, color: 'text-cyan-400' },
-                      { label: 'Avg Wait', value: avgWait.toFixed(1) + 's', color: 'text-amber-400' },
-                      { label: 'Max Wait', value: maxWait + 's', color: 'text-red-400' },
-                      { label: 'Min Wait', value: minWait + 's', color: 'text-emerald-400' },
-                      { label: 'Avg Service', value: avgTx.toFixed(1) + 's', color: 'text-blue-400' },
-                      { label: 'Avg Total Time', value: avgTotal.toFixed(1) + 's', color: 'text-fuchsia-400' },
-                      { label: 'Throughput', value: ((totalServed / Math.max(1, finishTime ?? 1))).toFixed(2) + '/tick', color: 'text-emerald-400' },
+                      { label: 'Avg Wait', value: avgWait.toFixed(1) + 'ms', color: 'text-amber-400' },
+                      { label: 'Max Wait', value: maxWait + 'ms', color: 'text-red-400' },
+                      { label: 'Min Wait', value: minWait + 'ms', color: 'text-emerald-400' },
+                      { label: 'Avg Service', value: avgTx.toFixed(1) + 'ms', color: 'text-blue-400' },
+                      { label: 'Avg Total Time', value: avgTotal.toFixed(1) + 'ms', color: 'text-fuchsia-400' },
+                      { label: 'Throughput', value: ((totalServed / Math.max(1, finishTime ?? 1)) * 1000).toFixed(2) + '/s', color: 'text-emerald-400' },
+                      { label: 'Efficiency', value: ((finishTime ?? 0) / Math.max(1, elapsedRealTime * 1000)).toFixed(4) + 'x', color: 'text-amber-200' },
                     ].map(kpi => (
                       <div key={kpi.label} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{kpi.label}</div>
@@ -395,7 +457,7 @@ function App() {
                           <h4 className="text-cyan-400 font-bold mb-2">Server {srv.id}</h4>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between"><span className="text-slate-400">Customers Served</span><span className="font-mono text-white">{srvDone.length}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">Avg Wait</span><span className="font-mono text-amber-400">{sAvg.toFixed(1)}s</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Avg Wait</span><span className="font-mono text-amber-400">{sAvg.toFixed(1)}ms</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Total Busy Time</span><span className="font-mono text-blue-400">{srv.totalBusyTime}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Utilization</span><span className="font-mono text-fuchsia-400">{Math.min(100, (srv.totalBusyTime / Math.max(1, finishTime ?? 1)) * 100).toFixed(1)}%</span></div>
                           </div>
@@ -421,10 +483,10 @@ function App() {
                             <td className="px-3 py-1.5 text-slate-300">S{c.serverId}</td>
                             <td className="px-3 py-1.5 text-slate-400">{c.arrivalTime}</td>
                             <td className="px-3 py-1.5 text-slate-400">{c.transactionTime}</td>
-                            <td className={`px-3 py-1.5 font-mono font-bold ${c.queueWaitTime > 10 ? 'text-red-400' : c.queueWaitTime > 0 ? 'text-amber-400' : 'text-slate-500'}`}>{c.queueWaitTime}s</td>
+                            <td className={`px-3 py-1.5 font-mono font-bold ${c.queueWaitTime > 10 ? 'text-red-400' : c.queueWaitTime > 0 ? 'text-amber-400' : 'text-slate-500'}`}>{c.queueWaitTime}ms</td>
                             <td className="px-3 py-1.5 text-slate-400">{c.windowOpenTime}</td>
                             <td className="px-3 py-1.5 text-emerald-400">{c.serviceEndTime}</td>
-                            <td className="px-3 py-1.5 text-blue-400 font-bold">{c.serviceEndTime - c.arrivalTime}s</td>
+                            <td className="px-3 py-1.5 text-blue-400 font-bold">{c.serviceEndTime - c.arrivalTime}ms</td>
                           </tr>
                         ))}
                       </tbody>

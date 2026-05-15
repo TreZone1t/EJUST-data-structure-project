@@ -10,22 +10,21 @@ import {
 } from '@xyflow/react';
 import type { Node, Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { CustomerData } from './CustomerTable';
 import type { ServerData } from './App';
 
-const CoverageNode = ({ data }: any) => {
-  return (
-    <div
-      className="rounded-full border-2 border-dashed border-cyan-500/30 bg-cyan-900/10 flex items-center justify-center pointer-events-none"
-      style={{ width: data.radius * 2, height: data.radius * 2 }}
-    >
-      <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 bg-cyan-900/10"></div>
-      <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-cyan-400 text-[10px] font-bold tracking-[0.2em] uppercase bg-slate-950/90 px-3 py-1 rounded-full border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)] whitespace-nowrap">
-        {data.label} Coverage
-      </div>
-    </div>
-  );
-};
+export interface CustomerData {
+  id: number;
+  x: number;
+  y: number;
+  arrivalTime: number;
+  transactionTime: number;
+  queueWaitTime: number;
+  windowOpenTime: number;
+  serviceEndTime: number;
+  serverId: number;
+}
+
+
 
 const ServerNode = ({ data }: any) => {
   return (
@@ -33,7 +32,18 @@ const ServerNode = ({ data }: any) => {
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <div className="absolute inset-0 bg-cyan-500/10 rounded-2xl"></div>
       <div className="text-3xl z-10">📡</div>
+      {/* Coverage Area */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-cyan-500/30 bg-cyan-900/10 flex items-center justify-center pointer-events-none -z-10"
+        style={{ width: data.radius * 2, height: data.radius * 2 }}
+      >
+        <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 bg-cyan-900/10"></div>
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-cyan-400 text-[10px] font-bold tracking-[0.2em] uppercase bg-slate-950/90 px-3 py-1 rounded-full border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)] whitespace-nowrap">
+          {data.label} Coverage
+        </div>
+      </div>
 
+      {/* Server Label */}
       <div className="absolute -bottom-8 whitespace-nowrap font-bold text-cyan-300 text-sm z-10 bg-slate-900 px-3 py-1 rounded-full border border-cyan-500/50 shadow-md">
         {data.label}
       </div>
@@ -44,11 +54,14 @@ const ServerNode = ({ data }: any) => {
 
 const CustomerNode = ({ data }: any) => {
   return (
-    <div className="relative group flex items-center justify-center w-4 h-4 bg-fuchsia-500 border border-fuchsia-300 rounded-full shadow-[0_0_8px_rgba(217,70,239,0.8)] cursor-pointer z-40">
+    <div 
+      className="relative group flex items-center justify-center w-4 h-4 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] cursor-pointer z-40 border border-white/20"
+      style={{ backgroundColor: data.color || '#ec4899' }}
+    >
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-xs text-white p-2 rounded-lg border border-slate-700 whitespace-nowrap z-[100] shadow-2xl">
-        <span className="font-bold text-fuchsia-300 mb-0.5">User #{data.ticket}</span>
-        <span className="text-[10px] text-slate-400">Wait: {data.wait}s</span>
+        <span className="font-bold mb-0.5" style={{ color: data.color || '#ec4899' }}>User #{data.ticket}</span>
+        <span className="text-[10px] text-slate-400">Wait: {data.wait}ms</span>
         <div className="absolute -bottom-1.5 w-3 h-3 bg-slate-900 border-b border-r border-slate-700 rotate-45"></div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
@@ -57,7 +70,6 @@ const CustomerNode = ({ data }: any) => {
 };
 
 const nodeTypes = {
-  coverage: CoverageNode,
   server: ServerNode,
   customer: CustomerNode,
 };
@@ -80,19 +92,10 @@ export const SimulationGraph: React.FC<SimulationGraphProps> = ({ servers, custo
       const cy = s.y;
 
       nodes.push({
-        id: `coverage-${s.id}`,
-        type: 'coverage',
-        position: { x: cx - coverageRadius, y: cy - coverageRadius },
-        data: { label: `Zone ${s.id}`, radius: coverageRadius, isRunning },
-        style: { zIndex: -1 },
-        draggable: false,
-        selectable: false,
-      });
-      nodes.push({
         id: `server-${s.id}`,
         type: 'server',
         position: { x: cx - 40, y: cy - 40 },
-        data: { label: `Server ${s.id}`, isRunning },
+        data: { label: `Server ${s.id}`, radius: coverageRadius, isRunning },
         style: { zIndex: 50 },
       });
     });
@@ -119,10 +122,17 @@ export const SimulationGraph: React.FC<SimulationGraphProps> = ({ servers, custo
 
       group.forEach((c, idx) => {
         const customerNodeId = `customer-${c.id}`;
+        
+        // Use a pseudo-random seed based on customer ID for stable "randomness"
+        const seed = (c.id * 1337) % 1000 / 1000;
+        const jitterX = (seed * 100 - 50);
+        const jitterY = (((seed * 1234) % 1000) / 1000 * 100 - 50);
+
         const angle = (idx * (360 / Math.max(group.length, 8))) * (Math.PI / 180);
-        const radius = 160 + Math.floor(idx / 8) * 60;
-        const px = pos.cx + Math.cos(angle) * radius;
-        const py = pos.cy + Math.sin(angle) * radius;
+        const baseRadius = 180 + Math.floor(idx / 8) * 70;
+        
+        const px = pos.cx + Math.cos(angle) * baseRadius + jitterX;
+        const py = pos.cy + Math.sin(angle) * baseRadius + jitterY;
 
         nodes.push({
           id: customerNodeId,
@@ -131,6 +141,7 @@ export const SimulationGraph: React.FC<SimulationGraphProps> = ({ servers, custo
           data: {
             ticket: c.id,
             wait: c.queueWaitTime,
+            color: (c as any).color,
             isRunning
           },
           style: { zIndex: 40 },
