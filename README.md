@@ -10,12 +10,12 @@ This project was developed collaboratively by the following team members. Each m
 
 | Name | ID | Role & Contribution |
 | :--- | :---: | :--- |
-| **Abdulhakim** | `320250201` | **Team Leader & Core Architect:** Designed the overall system architecture, implemented the `ServerAPI` Simulation Engine, and managed the ticking system (System Clock). |
-| **Yehia Eldershaby** | `320250200` | **Data Structures Engineer:** Designed and implemented the core `Queue<T>` template data structure from scratch (FIFO logic, dynamic memory). |
-| **Adam Bahaa Sabry** | `320250186` | **Algorithm Engineer:** Implemented the `Server` component and the **Shortest Queue First (Load Balancing)** distribution algorithm. |
-| **Yahia Elghnaam** | `320250184` | **Simulation Logic:** Implemented the `Customer` class, calculated random transaction times, and managed arrival/service time logic. |
-| **Jana Khaled** | `320250177` | **Backend Developer:** Developed the C++ HTTP server API using `cpp-httplib`, managing POST/GET endpoints, JSON parsing, and CORS headers. |
-| **Tasbeeh** | `320250199` | **Frontend Developer (Bonus):** Built the interactive React Dashboard, implementing dynamic server layouts, real-time metrics, and animations. |
+| **Abdulhakim** | `320250201` | **UI and integration :** Built the interactive dashboard and managed the integration of the full system architecture. |
+| **Adam Bahaa Sabry** | `320250186` | **Queue:** Implemented the generic Queue data structure logic and dynamic memory management. |
+| **Jana Khaled** | `320250177` | **Server:** Implemented the Server component, queue capacity, and customer processing logic. |
+| **Tasbeeh** | `320250199` | **Customer:** Implemented the Customer component, managing arrival and randomized transaction times. |
+| **Yahia Elghnaam** | `320250184` | **Device and simulationTick:** Implemented the base Device class and the core simulation tick loop for the engine. |
+| **Yehia Eldershaby** | `320250200` | **Run:** Handled the simulation execution, initialization, and running the HTTP backend environment. |
 
 ---
 

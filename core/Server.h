@@ -47,11 +47,6 @@ public:
   bool hasQueueSpace() const { return customerQueue.getLength() < QueueLength; }
   Customer getCurrentCustomer() const { return currentCustomer; }
 
-  double distanceTo(Customer &c) {
-    return std::sqrt(std::pow(location.x - c.getLocationX(), 2) +
-                     std::pow(location.y - c.getLocationY(), 2));
-  }
-
   void serveCustomer(Customer &c, int currentTime) {
     isBusyFlag = true;
     finishTime = currentTime + c.getTransactionTime();
@@ -76,23 +71,15 @@ public:
   Queue<Customer> getQueue() const { return customerQueue; }
   static int recommendServer(Queue<Server> &servers, Customer &c) {
     int bestServerIdx = -1;
-    double bestScore = -1;
+    int minQueue = 999999;
     for (int i = 0; i < servers.getLength(); i++) {
       Server currentServer = servers[i];
-      if (!currentServer.hasQueueSpace()) continue;
+      if (!currentServer.hasQueueSpace())
+        continue;
 
-      double dist = currentServer.distanceTo(c);
       int queueLen = currentServer.getQueueLength();
-      bool free = !currentServer.isBusy();
-      double score = 0;
-      if (free) {
-        score = dist;
-      } else {
-        score = dist + (queueLen * 100.0);
-      }
-
-      if (bestScore == -1 || score < bestScore) {
-        bestScore = score;
+      if (queueLen < minQueue) {
+        minQueue = queueLen;
         bestServerIdx = i;
       }
     }
