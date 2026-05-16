@@ -71,7 +71,7 @@ function App() {
         layout: layout
       };
       await axios.post(`${backendUrl}/api/start`, payload);
-      
+
       // Real-time counter
       if (realTimeIntervalRef.current) clearInterval(realTimeIntervalRef.current);
       realTimeIntervalRef.current = setInterval(() => {
@@ -206,16 +206,16 @@ function App() {
               title="-1 for infinite"
             />
           </div>
-            <div className="flex flex-col">
-              <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Sim Speed<span className="text-slate-600">/poll</span></label>
-              <input
-                type="number"
-                className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50 transition-colors w-full"
-                value={tickRate}
-                onChange={(e) => setTickRate(e.target.value)}
-                placeholder="3"
-              />
-            </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Sim Speed<span className="text-slate-600">/poll</span></label>
+            <input
+              type="number"
+              className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50 transition-colors w-full"
+              value={tickRate}
+              onChange={(e) => setTickRate(e.target.value)}
+              placeholder="3"
+            />
+          </div>
           <div className="flex flex-col">
             <label className="text-[10px] text-slate-400 font-bold tracking-wider mb-1">Queue Size</label>
             <input

@@ -7,7 +7,6 @@
 
 class Server : public Device {
 private:
-  int ServerID;
   bool isBusyFlag;
   Customer currentCustomer;
   int finishTime;
@@ -79,7 +78,9 @@ public:
     int bestServerIdx = -1;
     double bestScore = -1;
     for (int i = 0; i < servers.getLength(); i++) {
-      Server currentServer = servers.showFront();
+      Server currentServer = servers[i];
+      if (!currentServer.hasQueueSpace()) continue;
+
       double dist = currentServer.distanceTo(c);
       int queueLen = currentServer.getQueueLength();
       bool free = !currentServer.isBusy();

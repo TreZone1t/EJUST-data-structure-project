@@ -1,7 +1,6 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 #include <cstdlib>
-
 class Device {
 protected:
   int deviceId;
@@ -10,7 +9,6 @@ protected:
     int y;
   } location;
   static int counter;
-
 public:
   Device() {
     deviceId = counter++;

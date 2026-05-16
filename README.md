@@ -1,79 +1,108 @@
-![Project Status](https://img.shields.io/badge/Status-In%20Development-blue)
+# 📊 Data Structure Project: Queuing System Simulation
+**Spring 2026**
+
+![Project Status](https://img.shields.io/badge/Status-Completed-success)
 ![Course](https://img.shields.io/badge/Course-Data%20Structures-brightgreen)
-![Tech Stack](https://img.shields.io/badge/Stack-C++%20|%20React-orange)
+![Tech Stack](https://img.shields.io/badge/Stack-C++%20|%20React-blue)
 
-## 📌 Project Overview
-This project is a comprehensive **Queuing System Simulation** designed to model real-life service environments (such as banks, hospitals, or call centers) where customers wait in line to receive service. It utilizes a custom-built **FIFO Queue data structure** in C++ to simulate customer arrivals, waiting times, and service durations.
+## 👥 Team Members & Contributions
+This project was developed collaboratively by the following team members. Each member took ownership of specific modules of the system to ensure an efficient, robust, and scalable implementation.
 
-To enhance the user experience and achieve bonus requirements, the core C++ simulation is integrated with a modern **React-based Web UI** using **React Flow** for a drag-and-drop interactive canvas, bridged together by a **Node.js/Express** backend[cite: 1].
-
-## ✨ Key Features
-* **Core Data Structures:** Custom implementation of a Queue data structure in C++ from scratch[cite: 1].
-* **System Clock Simulation:** Models customers arriving at different times and getting served by multiple servers[cite: 1].
-* **Performance Analytics:** Calculates System Efficiency, Average Waiting Time, Max Queue Length, and Server Utilization[cite: 1].
-* **Interactive UI (Bonus):** A visual drag-and-drop dashboard to dynamically add servers and customers[cite: 1].
-* **Full-Stack Integration:** Seamless communication between C++ binaries and Web interfaces using JSON and `child_process`.
-
----
-
-## 🛠️ Technology Stack
-* **Simulation Core:** `C++` (Compiled via g++)
-* **Backend Bridge:** `Node.js`, `Express.js`, `child_process`
-* **Frontend UI:** `React.js` (Vite), `Tailwind CSS`, `@xyflow/react` (React Flow)
+| Name | ID | Role & Contribution |
+| :--- | :---: | :--- |
+| **Abdulhakim** | `320250201` | **Team Leader & Core Architect:** Designed the overall system architecture, implemented the `ServerAPI` Simulation Engine, and managed the ticking system (System Clock). |
+| **Yehia Eldershaby** | `320250200` | **Data Structures Engineer:** Designed and implemented the core `Queue<T>` template data structure from scratch (FIFO logic, dynamic memory). |
+| **Adam Bahaa Sabry** | `320250186` | **Algorithm Engineer:** Implemented the `Server` component and the **Shortest Queue First (Load Balancing)** distribution algorithm. |
+| **Yahia Elghnaam** | `320250184` | **Simulation Logic:** Implemented the `Customer` class, calculated random transaction times, and managed arrival/service time logic. |
+| **Jana Khaled** | `320250177` | **Backend Developer:** Developed the C++ HTTP server API using `cpp-httplib`, managing POST/GET endpoints, JSON parsing, and CORS headers. |
+| **Tasbeeh** | `320250199` | **Frontend Developer (Bonus):** Built the interactive React Dashboard, implementing dynamic server layouts, real-time metrics, and animations. |
 
 ---
 
-## ⚙️ Prerequisites
-Before you begin, ensure you have the following installed on your machine:
-* [Node.js](https://nodejs.org/) (v16 or higher)
-* `g++` compiler (MinGW for Windows or equivalent for Mac/Linux)
-* Git
+## 📌 1. Project Idea: Queuing System Simulation
+This project focuses on designing a **simulation system** that models real-life service environments where customers wait in line to receive service, such as banks, hospitals, or call centers. 
+
+The goal of the system is to study and analyze system efficiency by dynamically measuring **waiting time, queue length, and overall service performance**.
+
+### Features Implemented:
+* **Customers arriving at different times:** Configurable arrival rates dynamically spawn new customers per simulation tick.
+* **A waiting queue following FIFO order:** Developed a generic Node-based Queue data structure in pure C++.
+* **Servers providing service to customers:** Multiple servers handle requests and process transaction times simultaneously.
+* **System clock controlling the simulation:** A tick-based loop advances the simulation step-by-step.
+* **Dynamic Load Balancing:** Automatically directs incoming customers to the server with the shortest queue.
 
 ---
 
-## 🚀 Installation & Setup
+## 🏗️ 2. Core Components
 
-This repository is structured as a Monorepo. You need to set up the three parts: C++ Core, Backend, and Frontend.
+### A. The Queue Data Structure (`Queue.h`)
+The backbone of this project is a generic, template-based Queue (`Queue<T>`).
+* Relies on a custom `Node` struct.
+* Maintains pointers to the `front` and `rear` for `O(1)` enqueue and dequeue operations.
+* Avoids standard libraries (`std::queue`) to demonstrate pure data structure knowledge.
 
-### 1. Compile the C++ Core
-The backend requires the C++ executable to run the simulation.
+### B. The Server Component (`Server.h`)
+Represents the service windows. 
+* Has a maximum queue capacity (`QueueLength`).
+* Tracks `totalBusyTime`, `finishTime`, and `totalCustomerServed`.
+* Uses the `serveCustomer()` method to lock the server and calculate wait times until the simulated transaction finishes.
+
+### C. The Customer Component (`Customer.h`)
+Represents the clients. 
+* Generates a random `transactionTime` (service time duration).
+* Records timestamps for `arrivalTime`, `windowOpenTime`, and `serviceEndTime` to analyze system performance accurately.
+
+---
+
+## ⚖️ 3. Load Balancing Strategy
+Instead of naively filling up the first server before moving to the second, the simulation includes an intelligent distribution algorithm (**Shortest Queue First**). 
+* When a batch of customers arrives, the `recommendServer` function scans all active servers.
+* It checks for available space (`hasQueueSpace()`).
+* It evaluates the current queue length of each server and selects the server with the least load.
+* This closely mimics intelligent ticketing systems found in modern banks.
+
+---
+
+## 🌟 4. The Interactive UI Dashboard (Bonus Feature)
+To elevate the project beyond a basic console application, we developed a full-stack architecture consisting of:
+1. **C++ HTTP Backend:** Listens on port `8081` and accepts configuration parameters via JSON.
+2. **React + TypeScript Frontend:** Provides a stunning visual interface. 
+
+**UI Features Include:**
+* **Real-time Configuration:** Adjust the number of servers, queue sizes, customer arrival rates, and simulation speeds on the fly.
+* **Dynamic Server Layouts:** Visualize servers in Fibonacci, Grid, Line, or Random layouts.
+* **Live Performance Analytics:** View real-time KPIs including Average Wait Time, Service Rate, Server Utilization, and Queue Lengths.
+* **Customer Drawer:** A detailed data table showing the exact status, queue wait time, and total time spent for every single generated customer.
+* **Post-Simulation Report:** Automatically generates a comprehensive analytical report once the simulation finishes.
+
+---
+
+## 🚀 5. How to Run
+
+### Setup the C++ Simulation Engine
+Make sure you have a `g++` compiler installed.
 ```bash
-cd cpp_core
-# For Windows:
+# Navigate to the core directory
+cd core
+
+# Compile the C++ program (Windows)
 .\build.bat
-# For Mac/Linux:
-mkdir build && g++ src/*.cpp -o build/simulation.exe
-2. Setup the Backend
-Open a new terminal window:
 
-Bash
-cd backend
-npm install
-npm run dev
-The backend server will start on http://localhost:5000.
+# Run the backend
+./build/simulation.exe
+```
 
-3. Setup the Frontend
-Open another terminal window:
-
-Bash
+### Setup the Frontend Interface
+Make sure you have Node.js installed.
+```bash
+# Open a new terminal and navigate to the frontend directory
 cd frontend
+
+# Install dependencies
 npm install
+
+# Start the web interface
 npm run dev
-The React app will open in your default browser.
+```
 
-🎯 How to Use
-Open the Frontend UI in your browser.
-
-Use the Drag and Drop sidebar to place servers and specify the customer arrival rate on the canvas.
-
-Click "Run Simulation".
-
-The React app sends the parameters to the Express server, which executes the C++ core.
-
-The C++ core calculates the metrics and returns them as a JSON object.
-
-View the generated charts and statistics (Waiting Time, Queue Length, etc.) on the dashboard.
-
-
-
-Note to Evaluators: This project includes bonus features such as an interactive UI and external full-stack integration[cite: 1]. Please ensure both the backend and frontend servers are running to experience the full capabilities.
+Open the link provided by Vite (e.g., `http://localhost:5173`) in your browser to interact with the simulation!

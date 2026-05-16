@@ -2,7 +2,7 @@
 using namespace std;
 int main() {
   try {
-    ServerAPI *api = new ServerAPI(3);
+    ServerAPI *api = new ServerAPI();
     api->run();
     delete api;
   } catch (const std::exception &e) {

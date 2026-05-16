@@ -3,18 +3,19 @@
 #include "Server.h"
 #include "lib/httplib.h"
 #include <cmath>
-#include <string>
 #include <regex>
+#include <string>
 using namespace std;
 int Device::counter = 0;
 class ServerAPI {
 private:
   int Squeue;
   int tick;
-  int ticksPerCall; // how many simulation steps per API request
-  int totalSpawned; // how many customers have been created so far
-  int arrival_rate; // how many ticks between customer arrivals
+  int ticksPerCall;
+  int totalSpawned;
+  int arrival_rate;
   bool sim_running;
+  int servers_count;
   Queue<Server> servers;
   Queue<Customer> customers;
   Queue<Customer> customers_being_served;
@@ -22,7 +23,6 @@ private:
   int max_customers;
   const int port = 8081;
   httplib::Server http_server;
-
   string generateJsonData() {
     string json = "{";
     json += "\"time\":" + to_string(tick) + ",";
@@ -97,11 +97,11 @@ private:
   void simulationTick() {
     if (!sim_running)
       return;
-    // Spawn 1 new customer per tick (until max_customers reached)
     int toSpawn = 0;
     if (totalSpawned < max_customers) {
-      if (tick % arrival_rate == 0) {
-        toSpawn = 1;
+      toSpawn = arrival_rate;
+      if (totalSpawned + toSpawn > max_customers) {
+        toSpawn = max_customers - totalSpawned;
       }
     }
     for (int k = 0; k < toSpawn; k++) {
@@ -109,33 +109,34 @@ private:
       customers.enqueue(c);
       totalSpawned++;
     }
+    // 1. Free server if finished → save to completed_customers
     for (int i = 0; i < servers.getLength(); i++) {
-      // 1. Free server if finished → save to completed_customers
       if (servers[i].isBusy() && servers[i].isDone(tick)) {
         Customer done = servers[i].freeServer();
         completed_customers.enqueue(done);
         customers_being_served.dequeue();
       }
-
-      // 2. Fill queue slots from the global waiting pool
-      while (customers.getLength() > 0 && servers[i].hasQueueSpace()) {
+    }
+    while (customers.getLength() > 0) {
+      int bestSerID = Server::recommendServer(servers, customers[0]);
+      if (bestSerID != -1) {
         Customer c = customers.dequeue();
-        c.setServerId(servers[i].getDeviceId());
+        c.setServerId(servers[bestSerID].getDeviceId());
 
-        // Place customer in a circle around the server (radius 200)
-        // Use current queue length for angle BEFORE adding (so positions spread
-        // out)
-        double angle =
-            (servers[i].getQueueLength() * 45) * (3.14159265358979 / 180.0);
+        double angle = (servers[bestSerID].getQueueLength() * 45) *
+                       (3.14159265358979 / 180.0);
         int radius = 200;
-        c.setLocation(servers[i].getX() + (int)(cos(angle) * radius),
-                      servers[i].getY() + (int)(sin(angle) * radius));
+        c.setLocation(servers[bestSerID].getX() + (int)(cos(angle) * radius),
+                      servers[bestSerID].getY() + (int)(sin(angle) * radius));
 
-        servers[i].addCustomer(c);
-        customers_being_served.enqueue(c); // enqueue AFTER location is set
+        servers[bestSerID].addCustomer(c);
+      } else {
+        break; // All servers are full
       }
+    }
 
-      // 3. Start serving if idle and queue has customers
+    // 3. Start serving if idle and queue has customers
+    for (int i = 0; i < servers.getLength(); i++) {
       if (!servers[i].isBusy() && servers[i].getQueueLength() > 0) {
         Customer next = servers[i].serveNextCustomer();
         servers[i].serveCustomer(next, tick);
@@ -146,15 +147,12 @@ private:
   }
 
 public:
-  ServerAPI(int servers_count)
-      : Squeue(3), tick(0), ticksPerCall(3), totalSpawned(0),
+  ServerAPI()
+      : servers_count(3), Squeue(3), tick(0), ticksPerCall(3), totalSpawned(0),
         arrival_rate(1), sim_running(false), max_customers(100) {
     for (int i = 0; i < servers_count; i++) {
       Server s(Squeue);
       int cx = 1000, cy = 1000;
-      // Fibonacci Spiral (Phyllotaxis) Layout
-      // Angle: i * Golden Angle (approx 137.5 degrees)
-      // Radius: c * sqrt(i)
       double goldenAngle = 2.399963229728653; // in radians
       double radius = 500.0 * sqrt(i + 1);
       double angle = i * goldenAngle;
@@ -166,7 +164,6 @@ public:
     }
   }
   void run() {
-    // GET /api/tick - advance simulation one step
     http_server.Get("/api/tick",
                     [this](const httplib::Request &, httplib::Response &res) {
                       if (sim_running)
@@ -175,7 +172,6 @@ public:
                       res.set_content("{\"ok\":true}", "application/json");
                     });
 
-    // GET /api/data - advance simulation ticksPerCall steps then return state
     http_server.Get("/api/data",
                     [this](const httplib::Request &, httplib::Response &res) {
                       for (int t = 0; t < ticksPerCall && sim_running; t++)
@@ -192,36 +188,41 @@ public:
       res.set_header("Access-Control-Allow-Origin", "*");
       res.set_content("{\"status\": \"stopped\"}", "application/json");
     });
+    http_server.Options(
+        "/api/start", [](const httplib::Request &req, httplib::Response &res) {
+          res.set_header("Access-Control-Allow-Origin", "*");
+          res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+          res.set_header("Access-Control-Allow-Headers", "Content-Type");
+          res.status = 200;
+        });
 
     http_server.Post("/api/start", [this](const httplib::Request &req,
-                                         httplib::Response &res) {
+                                          httplib::Response &res) {
       string body = req.body;
-      
-      auto getInt = [&](const string& key, int def) {
-          regex r("\"" + key + "\"\\s*:\\s*(-?\\d+)");
-          smatch match;
-          if (regex_search(body, match, r)) {
-              return stoi(match[1].str());
-          }
-          return def;
+      auto getInt = [&](const string &key, int def) {
+        regex r("\"" + key + "\"\\s*:\\s*(-?\\d+)");
+        smatch match;
+        if (regex_search(body, match, r)) {
+          return stoi(match[1].str());
+        }
+        return def;
       };
-      
-      auto getString = [&](const string& key, const string& def) {
-          regex r("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
-          smatch match;
-          if (regex_search(body, match, r)) {
-              return match[1].str();
-          }
-          return def;
+      auto getString = [&](const string &key, const string &def) {
+        regex r("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+        smatch match;
+        if (regex_search(body, match, r)) {
+          return match[1].str();
+        }
+        return def;
       };
 
       int reqServers = getInt("servers", 3);
       this->Squeue = getInt("Squeue", 3);
       this->max_customers = getInt("customers", 100);
-      
+
       int s = getInt("speed", 3);
       this->ticksPerCall = (s > 0 && s <= 20) ? s : 3;
-      
+
       int ar = getInt("arrivalRate", 1);
       this->arrival_rate = (ar > 0) ? ar : 1;
 
