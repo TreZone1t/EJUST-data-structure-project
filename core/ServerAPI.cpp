@@ -4,6 +4,7 @@
 #include "lib/httplib.h"
 #include <cmath>
 #include <string>
+#include <regex>
 using namespace std;
 int Device::counter = 0;
 class ServerAPI {
@@ -12,6 +13,7 @@ private:
   int tick;
   int ticksPerCall; // how many simulation steps per API request
   int totalSpawned; // how many customers have been created so far
+  int arrival_rate; // how many ticks between customer arrivals
   bool sim_running;
   Queue<Server> servers;
   Queue<Customer> customers;
@@ -98,7 +100,9 @@ private:
     // Spawn 1 new customer per tick (until max_customers reached)
     int toSpawn = 0;
     if (totalSpawned < max_customers) {
-      toSpawn = 1;
+      if (tick % arrival_rate == 0) {
+        toSpawn = 1;
+      }
     }
     for (int k = 0; k < toSpawn; k++) {
       Customer c(tick); // arrivalTime = current tick
@@ -144,7 +148,7 @@ private:
 public:
   ServerAPI(int servers_count)
       : Squeue(3), tick(0), ticksPerCall(3), totalSpawned(0),
-        sim_running(false), max_customers(100) {
+        arrival_rate(1), sim_running(false), max_customers(100) {
     for (int i = 0; i < servers_count; i++) {
       Server s(Squeue);
       int cx = 1000, cy = 1000;
@@ -189,32 +193,39 @@ public:
       res.set_content("{\"status\": \"stopped\"}", "application/json");
     });
 
-    http_server.Get("/api/start", [this](const httplib::Request &req,
+    http_server.Post("/api/start", [this](const httplib::Request &req,
                                          httplib::Response &res) {
-      int reqServers = 3;
-      if (req.has_param("servers")) {
-        reqServers = std::stoi(req.get_param_value("servers"));
-      }
-      int reqQueueLength = 3;
-      if (req.has_param("Squeue")) {
-        reqQueueLength = std::stoi(req.get_param_value("Squeue"));
-      }
-      this->Squeue = reqQueueLength;
-      this->max_customers = 100;
-      if (req.has_param("customers")) {
-        this->max_customers = std::stoi(req.get_param_value("customers"));
-      }
-      // Speed: how many ticks to advance per /api/data call
-      this->ticksPerCall = 3;
-      if (req.has_param("speed")) {
-        int s = std::stoi(req.get_param_value("speed"));
-        this->ticksPerCall = (s > 0 && s <= 20) ? s : 3;
-      }
+      string body = req.body;
+      
+      auto getInt = [&](const string& key, int def) {
+          regex r("\"" + key + "\"\\s*:\\s*(-?\\d+)");
+          smatch match;
+          if (regex_search(body, match, r)) {
+              return stoi(match[1].str());
+          }
+          return def;
+      };
+      
+      auto getString = [&](const string& key, const string& def) {
+          regex r("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+          smatch match;
+          if (regex_search(body, match, r)) {
+              return match[1].str();
+          }
+          return def;
+      };
 
-      string layout = "fibonacci";
-      if (req.has_param("layout")) {
-        layout = req.get_param_value("layout");
-      }
+      int reqServers = getInt("servers", 3);
+      this->Squeue = getInt("Squeue", 3);
+      this->max_customers = getInt("customers", 100);
+      
+      int s = getInt("speed", 3);
+      this->ticksPerCall = (s > 0 && s <= 20) ? s : 3;
+      
+      int ar = getInt("arrivalRate", 1);
+      this->arrival_rate = (ar > 0) ? ar : 1;
+
+      string layout = getString("layout", "fibonacci");
 
       this->tick = 0;
       this->totalSpawned = 0;

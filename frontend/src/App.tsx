@@ -62,8 +62,15 @@ function App() {
       setFinishTime(null);
       setElapsedRealTime(0);
       setRealStartTime(Date.now());
-      
-      await axios.get(`${backendUrl}/api/start?servers=${serversCount}&Squeue=${Squeue}&customers=${custLimit}&arrivalRate=${arrival}&speed=${speed}&layout=${layout}`);
+      const payload = {
+        servers: serversCount,
+        Squeue: Number(Squeue),
+        customers: custLimit,
+        arrivalRate: arrival,
+        speed: speed,
+        layout: layout
+      };
+      await axios.post(`${backendUrl}/api/start`, payload);
       
       // Real-time counter
       if (realTimeIntervalRef.current) clearInterval(realTimeIntervalRef.current);
